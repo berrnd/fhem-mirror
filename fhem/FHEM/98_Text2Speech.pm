@@ -109,7 +109,7 @@ sub Text2Speech_Initialize($)
   $hash->{AttrFn}    = "Text2Speech_Attr";
   $hash->{AttrList}  = "disable:0,1".
                        " TTS_Delemiter".
-                       " TTS_Ressource:ESpeak,pico". join(",", sort keys %ttsHost).
+                       " TTS_Ressource:ESpeak,SVOX-pico". join(",", sort keys %ttsHost).
                        " TTS_APIKey".
                        " TTS_User".
                        " TTS_Quality:".
@@ -412,6 +412,7 @@ sub Text2Speech_Set($@)
   return undef if(AttrVal($hash->{NAME}, "disable", "0") eq "1");
 
   if($cmd eq "tts") {
+    readingsSingleUpdate($hash, "playing", "1", 1);
     if($hash->{MODE} eq "DIRECT") {
       Text2Speech_PrepareSpeech($hash, join(" ", @a));
       $hash->{helper}{RUNNING_PID} = BlockingCall("Text2Speech_DoIt", $hash, "Text2Speech_Done", $TTS_TimeOut, "Text2Speech_AbortFn", $hash) unless(exists($hash->{helper}{RUNNING_PID}));
@@ -825,30 +826,30 @@ sub Text2Speech_DoIt($) {
     $cmd = "sudo espeak -vde+f3 -k5 -s150 \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
     Log3 $hash, 4, "Text2Speech:" .$cmd;
     system($cmd);
-  } elsif ($TTS_Ressource eq "pico") {
-	my $Mp3FilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".mp3";
-	if(! -e $Mp3FilePath) {
-	  #Generate .wav file and convert to .mp3
-	  my $WavFilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".wav";
-	  my $TTS_Language = AttrVal($hash->{NAME}, "TTS_Language", "de-DE");
-	  
-	  $cmd = "pico2wave --lang=" . $TTS_Language . " --wave=\"" . $WavFilePath . "\" \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
-      Log3 $hash, 4, "Text2Speech:" .$cmd;
-      system($cmd);
-	  
-	  $cmd = "lame \"" . $WavFilePath . "\" \"" . $Mp3FilePath . "\""; 
-      Log3 $hash, 4, "Text2Speech:" .$cmd;
-      system($cmd);
-	  
-	  unlink $WavFilePath;
-	}
-	
-	#Play .mp3 file
-	if(-e $Mp3FilePath) {
-	  $cmd = Text2Speech_BuildMplayerCmdString($hash, $Mp3FilePath);
-	  Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
-	  system($cmd);
-	}
+  } elsif ($TTS_Ressource eq "SVOX-pico") {
+  	my $Mp3FilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".mp3";
+  	if(! -e $Mp3FilePath) {
+  	  #Generate .wav file and convert to .mp3
+  	  my $WavFilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".wav";
+  	  my $TTS_Language = AttrVal($hash->{NAME}, "TTS_Language", "de-DE");
+  	  
+  	  $cmd = "pico2wave --lang=" . $TTS_Language . " --wave=\"" . $WavFilePath . "\" \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
+        Log3 $hash, 4, "Text2Speech:" .$cmd;
+        system($cmd);
+  	  
+  	  $cmd = "lame \"" . $WavFilePath . "\" \"" . $Mp3FilePath . "\""; 
+        Log3 $hash, 4, "Text2Speech:" .$cmd;
+        system($cmd);
+  	  
+  	  unlink $WavFilePath;
+  	}
+  	
+  	#Play .mp3 file
+  	if(-e $Mp3FilePath) {
+  	  $cmd = Text2Speech_BuildMplayerCmdString($hash, $Mp3FilePath);
+  	  Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
+  	  system($cmd);
+  	}
   }
 
   return $hash->{NAME}. "|". 
@@ -887,6 +888,8 @@ sub Text2Speech_Done($) {
   # erneutes aufrufen da ev. weiterer Text in der Warteschlange steht
   if(@{$hash->{helper}{Text2Speech}} > 0) {
     $hash->{helper}{RUNNING_PID} = BlockingCall("Text2Speech_DoIt", $hash, "Text2Speech_Done", $TTS_TimeOut, "Text2Speech_AbortFn", $hash);
+  } else {
+    readingsSingleUpdate($hash, "playing", "0", 1);
   }
 }
 
@@ -1039,7 +1042,7 @@ sub Text2Speech_WriteStats($$$$){
         Using the ESpeak Engine. Installation of the espeak sourcen is required.<br>
         <code>apt-get install espeak</code>
       </li>
-	  <li>pico<br>
+	  <li>SVOX-pico<br>
         Using SVOX-Pico TTS-Engine (from the AOSP).<br>
 		Installation of the engine and <code>lame</code> is required, see <a target="_blank" href="http://blogs.uni-due.de/zim/2014/03/21/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-raspberry-pi-mit-espeak-und-svox-pico/">here</a> or in short:<br>
         <code>sudo apt-get install libpopt-dev lame</code><br>
@@ -1234,7 +1237,7 @@ sub Text2Speech_WriteStats($$$$){
         ESpeak ist vor der Nutzung zu installieren.<br>
         <code>apt-get install espeak</code>
       </li>
-	  <li>pico<br>
+	  <li>SVOX-pico<br>
         Nutzung der SVOX-Pico TTS-Engine (aus dem AOSP).<br>
 		Die Sprachengine sowie <code>lame</code> müssen installiert sein, siehe <a target="_blank" href="http://blogs.uni-due.de/zim/2014/03/21/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-raspberry-pi-mit-espeak-und-svox-pico/">hier</a> oder in aller K&uuml;rze:<br>
         <code>sudo apt-get install libpopt-dev lame</code><br>
