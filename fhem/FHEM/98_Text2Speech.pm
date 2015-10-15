@@ -1043,8 +1043,11 @@ sub Text2Speech_WriteStats($$$$){
         <code>apt-get install espeak</code>
       </li>
 	  <li>SVOX-pico<br>
-        Using SVOX-Pico TTS-Engine (from the AOSP).<br>
-		Installation of the engine and <code>lame</code> is required, see <a target="_blank" href="http://blogs.uni-due.de/zim/2014/03/21/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-raspberry-pi-mit-espeak-und-svox-pico/">here</a> or in short:<br>
+        Using the SVOX-Pico TTS-Engine (from the AOSP).<br>
+		Installation of the engine and <code>lame</code> is required:<br>
+        <code>sudo apt-get install libttspico-utils lame</code><br><br>
+        On ARM/Raspbian the package <code>libttspico-utils</code>,<br>
+        so you may have to compile it yourself or use the precompiled package from <a target="_blank" href"http://www.robotnet.de/2014/03/20/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-rasberry-pi/">this guide</a>, in short:<br>
         <code>sudo apt-get install libpopt-dev lame</code><br>
         <code>cd /tmp</code><br>
         <code>wget http://www.dr-bischoff.de/raspi/pico2wave.deb</code><br>
@@ -1239,12 +1242,14 @@ sub Text2Speech_WriteStats($$$$){
       </li>
 	  <li>SVOX-pico<br>
         Nutzung der SVOX-Pico TTS-Engine (aus dem AOSP).<br>
-		Die Sprachengine sowie <code>lame</code> müssen installiert sein, siehe <a target="_blank" href="http://blogs.uni-due.de/zim/2014/03/21/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-raspberry-pi-mit-espeak-und-svox-pico/">hier</a> oder in aller K&uuml;rze:<br>
+		Die Sprachengine sowie <code>lame</code> müssen installiert sein:<br>
+        <code>sudo apt-get install libttspico-utils lame</code><br><br>
+        Für ARM/Raspbian sind die <code>libttspico-utils</code> leider nicht verfügbar,<br>
+        deswegen müsste man diese selbst kompilieren oder das vorkompilierte Paket aus <a target="_blank" href"http://www.robotnet.de/2014/03/20/sprich-freund-und-tritt-ein-sprachausgabe-fur-den-rasberry-pi/">dieser Anleitung</a> verwenden, in aller K&uuml;rze:<br>
         <code>sudo apt-get install libpopt-dev lame</code><br>
         <code>cd /tmp</code><br>
         <code>wget http://www.dr-bischoff.de/raspi/pico2wave.deb</code><br>
         <code>sudo dpkg --install pico2wave.deb</code>
-		</code>
       </li>
     </ul>
   </li>
