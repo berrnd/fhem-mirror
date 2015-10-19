@@ -94,6 +94,16 @@ my %language        = ("Google"     =>  {"Deutsch"        => "de",
                                          "Spain"          => "es-es",
                                          "Italian"        => "it-it",
                                          "Chinese"        => "zh-cn"
+                                         },
+                        "SVOX-pico" =>  {"Deutsch"        => "de-DE",
+                                         "English-US"     => "en-US",
+                                         "Schwedisch"     => "en-US", # gibts nicht
+                                         "Indian-Hindi"   => "en-US", # gibts nicht
+                                         "Arabic"         => "en-US", # gibts nicht
+                                         "France"         => "fr-FR",
+                                         "Spain"          => "es-ES",
+                                         "Italian"        => "it-IT",
+                                         "Chinese"        => "en-US"  # gibts nicht
                                          }
                       );
 
@@ -833,7 +843,7 @@ sub Text2Speech_DoIt($) {
   	  my $WavFilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".wav";
   	  my $TTS_Language = AttrVal($hash->{NAME}, "TTS_Language", "de-DE");
   	  
-  	  $cmd = "pico2wave --lang=" . $TTS_Language . " --wave=\"" . $WavFilePath . "\" \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
+  	  $cmd = "pico2wave --lang=" . $language{$TTS_Ressource}{$TTS_Language} . " --wave=\"" . $WavFilePath . "\" \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
         Log3 $hash, 4, "Text2Speech:" .$cmd;
         system($cmd);
   	  
