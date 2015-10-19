@@ -73,7 +73,8 @@ my %ttsQuality       = ("Google"     => "",
                        "VoiceRSS"   => "f="
                        );
 my %ttsMaxChar      = ("Google"     => 100,
-                       "VoiceRSS"   => 300
+                       "VoiceRSS"   => 300,
+                       "SVOX-pico"  => 1000
                        );
 my %language        = ("Google"     =>  {"Deutsch"        => "de",
                                          "English-US"     => "en-us",
@@ -481,73 +482,68 @@ sub Text2Speech_PrepareSpeech($$) {
     $TTS_AddDelemiter = "";
   }
 
-  if($TTS_Ressource ne "ESpeak") {
-    my @text; 
+  my @text; 
 
-    # ersetze Sonderzeichen die Google nicht auflösen kann
-    if($TTS_Ressource eq "Google") {
-      $t =~ s/ä/ae/g;
-      $t =~ s/ö/oe/g;
-      $t =~ s/ü/ue/g;
-      $t =~ s/Ä/Ae/g;
-      $t =~ s/Ö/Oe/g;
-      $t =~ s/Ü/Ue/g;
-      $t =~ s/ß/ss/g;
-    }
-
-    @text = $hash->{helper}{Text2Speech} if($hash->{helper}{Text2Speech}[0]); #vorhandene Queue, neuen Sprachbaustein hinten anfuegen
-    push(@text, $t);
-
-    # hole alle Filetemplates
-    my @FileTpl = split(" ", $TTS_FileTpl);
-    my @FileTplPc;
-
-    # bei Angabe direkter MP3-Files wird hier ein temporäres Template vergeben
-    for(my $i=0; $i<(@text); $i++) {
-      @FileTplPc = ($text[$i] =~ /:(\w+.+[mp3|ogg|wav]):/g);
-      for(my $j=0; $j<(@FileTplPc); $j++) {
-        my $time = time();
-        $time =~ s/\.//g;
-        my $tpl = "FileTpl_".$time."_#".$i; #eindeutige Templatedefinition schaffen
-        Log3 $hash, 4, "$me: Angabe einer direkten MP3-Datei gefunden:  $FileTplPc[$i] => $tpl";
-        push(@FileTpl, $tpl.":".$FileTplPc[$j]); #zb: FileTpl_123645875_#0:/ring.mp3
-        $text[$i] =~ s/$FileTplPc[$j]/$tpl/g; # Ersetze die DateiDefinition gegen ein Template
-      }
-    }
-
-    #iteriere durch die Sprachbausteine und splitte den Text bei den Filetemplates auf
-    for(my $i=0; $i<(@text); $i++) {
-      my $cutter = '#!#'; #eindeutigen Cutter als Delemiter bei den Filetemplates vergeben
-      @FileTplPc = ($text[$i] =~ /:([^:]+):/g);
-      for(my $j=0; $j<(@FileTplPc); $j++) {
-        $text[$i] =~ s/:$FileTplPc[$j]:/$cutter$FileTplPc[$j]$cutter/g;
-      }
-      @text = Text2Speech_SplitString(\@text, 0, $cutter, 1, ""); 
-    }
-
-    @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, $TTS_Delemiter, $TTS_ForceSplit, $TTS_AddDelemiter);
-    @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, "(?<=[\\.!?])\\s*", 0, "");
-    @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, ",", 0, "al");
-    @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, ";", 0, "al");
-    @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, "und", 0, "af");
-
-    Log3 $hash, 4, "$me: Auflistung der Textbausteine nach Aufbereitung:"; 
-    for(my $i=0; $i<(@text); $i++) {
-      # entferne führende und abschließende Leerzeichen aus jedem Textbaustein
-      $text[$i] =~ s/^\s+|\s+$//g; 
-      for(my $j=0; $j<(@FileTpl); $j++) {
-        # ersetze die FileTemplates mit den echten MP3-Files
-        @FileTplPc = split(/:/, $FileTpl[$j]);
-        $text[$i] = $TTS_FileTemplateDir ."/". $FileTplPc[1] if($text[$i] eq $FileTplPc[0]);
-      }
-      Log3 $hash, 4, "$me: $i => ".$text[$i]; 
-    }
-
-    @{$hash->{helper}{Text2Speech}} = @text;
-
-  } else {
-    push(@{$hash->{helper}{Text2Speech}}, $t);
+  # ersetze Sonderzeichen die Google nicht auflösen kann
+  if($TTS_Ressource eq "Google") {
+    $t =~ s/ä/ae/g;
+    $t =~ s/ö/oe/g;
+    $t =~ s/ü/ue/g;
+    $t =~ s/Ä/Ae/g;
+    $t =~ s/Ö/Oe/g;
+    $t =~ s/Ü/Ue/g;
+    $t =~ s/ß/ss/g;
   }
+
+  @text = $hash->{helper}{Text2Speech} if($hash->{helper}{Text2Speech}[0]); #vorhandene Queue, neuen Sprachbaustein hinten anfuegen
+  push(@text, $t);
+
+  # hole alle Filetemplates
+  my @FileTpl = split(" ", $TTS_FileTpl);
+  my @FileTplPc;
+
+  # bei Angabe direkter MP3-Files wird hier ein temporäres Template vergeben
+  for(my $i=0; $i<(@text); $i++) {
+    @FileTplPc = ($text[$i] =~ /:(\w+.+[mp3|ogg|wav]):/g);
+    for(my $j=0; $j<(@FileTplPc); $j++) {
+      my $time = time();
+      $time =~ s/\.//g;
+      my $tpl = "FileTpl_".$time."_#".$i; #eindeutige Templatedefinition schaffen
+      Log3 $hash, 4, "$me: Angabe einer direkten MP3-Datei gefunden:  $FileTplPc[$i] => $tpl";
+      push(@FileTpl, $tpl.":".$FileTplPc[$j]); #zb: FileTpl_123645875_#0:/ring.mp3
+      $text[$i] =~ s/$FileTplPc[$j]/$tpl/g; # Ersetze die DateiDefinition gegen ein Template
+    }
+  }
+
+  #iteriere durch die Sprachbausteine und splitte den Text bei den Filetemplates auf
+  for(my $i=0; $i<(@text); $i++) {
+    my $cutter = '#!#'; #eindeutigen Cutter als Delemiter bei den Filetemplates vergeben
+    @FileTplPc = ($text[$i] =~ /:([^:]+):/g);
+    for(my $j=0; $j<(@FileTplPc); $j++) {
+      $text[$i] =~ s/:$FileTplPc[$j]:/$cutter$FileTplPc[$j]$cutter/g;
+    }
+    @text = Text2Speech_SplitString(\@text, 0, $cutter, 1, ""); 
+  }
+
+  @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, $TTS_Delemiter, $TTS_ForceSplit, $TTS_AddDelemiter);
+  @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, "(?<=[\\.!?])\\s*", 0, "");
+  @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, ",", 0, "al");
+  @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, ";", 0, "al");
+  @text = Text2Speech_SplitString(\@text, $ttsMaxChar{$TTS_Ressource}, "und", 0, "af");
+
+  Log3 $hash, 4, "$me: Auflistung der Textbausteine nach Aufbereitung:"; 
+  for(my $i=0; $i<(@text); $i++) {
+    # entferne führende und abschließende Leerzeichen aus jedem Textbaustein
+    $text[$i] =~ s/^\s+|\s+$//g; 
+    for(my $j=0; $j<(@FileTpl); $j++) {
+      # ersetze die FileTemplates mit den echten MP3-Files
+      @FileTplPc = split(/:/, $FileTpl[$j]);
+      $text[$i] = $TTS_FileTemplateDir ."/". $FileTplPc[1] if($text[$i] eq $FileTplPc[0]);
+    }
+    Log3 $hash, 4, "$me: $i => ".$text[$i]; 
+  }
+
+  @{$hash->{helper}{Text2Speech}} = @text;
 }
 
 #####################################
@@ -661,7 +657,7 @@ sub Text2Speech_CalcMP3Duration($$) {
 # param2: string: Dateiname
 # param2: string: Text
 # 
-# Holt den Text aus dem Google Translator als MP3Datei
+# Holt den Text mithilfe der entsprechenden TTS_Ressource
 #####################################
 sub Text2Speech_Download($$$) {
   my ($hash, $file, $text) = @_;
@@ -672,50 +668,74 @@ sub Text2Speech_Download($$$) {
   my $TTS_Language  = AttrVal($hash->{NAME}, "TTS_Language", "Deutsch");
   my $TTS_Quality   = AttrVal($hash->{NAME}, "TTS_Quality", "");
   my $TTS_Speed     = AttrVal($hash->{NAME}, "TTS_Speed", "");
+  my $cmd;
 
+  if($TTS_Ressource =~ m/(Google|VoiceRSS)/) {
+    my $HttpResponse;
+    my $HttpResponseErr;
+    my $fh;
 
-  my $HttpResponse;
-  my $HttpResponseErr;
-  my $fh;
+    my $url  = "http://" . $ttsHost{$TTS_Ressource} . $ttsPath{$TTS_Ressource};
+       $url .= $ttsLang{$TTS_Ressource};
+       $url .= $language{$TTS_Ressource}{$TTS_Language};
+       $url .= "&" . $ttsAddon{$TTS_Ressource}              if(length($ttsAddon{$TTS_Ressource})>0);
+       $url .= "&" . $ttsUser{$TTS_Ressource} . $TTS_User     if(length($ttsUser{$TTS_Ressource})>0);
+       $url .= "&" . $ttsAPIKey{$TTS_Ressource} . $TTS_APIKey if(length($ttsAPIKey{$TTS_Ressource})>0);
+       $url .= "&" . $ttsQuality{$TTS_Ressource} . $TTS_Quality if(length($ttsQuality{$TTS_Ressource})>0);
+       $url .= "&" . $ttsSpeed{$TTS_Ressource} . $TTS_Speed if(length($ttsSpeed{$TTS_Ressource})>0);
+       $url .= "&" . $ttsQuery{$TTS_Ressource} . uri_escape($text);
+    
+    Log3 $hash->{NAME}, 4, "Text2Speech: Verwende ".$TTS_Ressource." OnlineResource zum Download";
+    Log3 $hash->{NAME}, 4, "Text2Speech: Hole URL: ". $url;
+    #$HttpResponse = GetHttpFile($ttsHost, $ttsPath . $ttsLang . $language{$TTS_Ressource}{$TTS_Language} . "&" . $ttsQuery . uri_escape($text));
+    my $param = {
+                      url         => $url,
+                      timeout     => 5,
+                      hash        => $hash,                                                                                  # Muss gesetzt werden, damit die Callback funktion wieder $hash hat
+                      method      => "GET"                                                                                  # Lesen von Inhalten
+                      #httpversion => "1.1",
+                      #header      => "User-Agent:Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.172 Safari/537.22m"              # Den Header gemäss abzufragender Daten ändern
+                      #header     => "agent: Mozilla/1.22\r\nUser-Agent: Mozilla/1.22"
+                  };
+    ($HttpResponseErr, $HttpResponse) = HttpUtils_BlockingGet($param);
+    
+    if(length($HttpResponseErr) > 0) {
+      Log3 $hash->{NAME}, 3, "Text2Speech: Fehler beim abrufen der Daten von " .$TTS_Ressource. " Translator";
+      Log3 $hash->{NAME}, 3, "Text2Speech: " . $HttpResponseErr; 
+    }
 
-  my $url  = "http://" . $ttsHost{$TTS_Ressource} . $ttsPath{$TTS_Ressource};
-     $url .= $ttsLang{$TTS_Ressource};
-     $url .= $language{$TTS_Ressource}{$TTS_Language};
-     $url .= "&" . $ttsAddon{$TTS_Ressource}              if(length($ttsAddon{$TTS_Ressource})>0);
-     $url .= "&" . $ttsUser{$TTS_Ressource} . $TTS_User     if(length($ttsUser{$TTS_Ressource})>0);
-     $url .= "&" . $ttsAPIKey{$TTS_Ressource} . $TTS_APIKey if(length($ttsAPIKey{$TTS_Ressource})>0);
-     $url .= "&" . $ttsQuality{$TTS_Ressource} . $TTS_Quality if(length($ttsQuality{$TTS_Ressource})>0);
-     $url .= "&" . $ttsSpeed{$TTS_Ressource} . $TTS_Speed if(length($ttsSpeed{$TTS_Ressource})>0);
-     $url .= "&" . $ttsQuery{$TTS_Ressource} . uri_escape($text);
-  
-  Log3 $hash->{NAME}, 4, "Text2Speech: Verwende ".$TTS_Ressource." OnlineResource zum Download";
-  Log3 $hash->{NAME}, 4, "Text2Speech: Hole URL: ". $url;
-  #$HttpResponse = GetHttpFile($ttsHost, $ttsPath . $ttsLang . $language{$TTS_Ressource}{$TTS_Language} . "&" . $ttsQuery . uri_escape($text));
-  my $param = {
-                    url         => $url,
-                    timeout     => 5,
-                    hash        => $hash,                                                                                  # Muss gesetzt werden, damit die Callback funktion wieder $hash hat
-                    method      => "GET"                                                                                  # Lesen von Inhalten
-                    #httpversion => "1.1",
-                    #header      => "User-Agent:Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/537.22 (KHTML, like Gecko) Chrome/25.0.1364.172 Safari/537.22m"              # Den Header gemäss abzufragender Daten ändern
-                    #header     => "agent: Mozilla/1.22\r\nUser-Agent: Mozilla/1.22"
-                };
-  ($HttpResponseErr, $HttpResponse) = HttpUtils_BlockingGet($param);
-  
-  if(length($HttpResponseErr) > 0) {
-    Log3 $hash->{NAME}, 3, "Text2Speech: Fehler beim abrufen der Daten von " .$TTS_Ressource. " Translator";
-    Log3 $hash->{NAME}, 3, "Text2Speech: " . $HttpResponseErr; 
+    $fh = new IO::File ">$file";
+    if(!defined($fh)) {
+      Log3 $hash->{NAME}, 2, "Text2Speech: mp3 Datei <$file> konnte nicht angelegt werden.";
+      return undef;
+    }
+
+    $fh->print($HttpResponse);
+    Log3 $hash->{NAME}, 4, "Text2Speech: Schreibe mp3 in die Datei $file mit ".length($HttpResponse)." Bytes";  
+    close($fh);
+  } elsif ($TTS_Ressource eq "ESpeak") {
+    my $FileWav = $file . ".wav";
+    
+    $cmd = "sudo espeak -vde+f3 -k5 -s150 \"" . $text . "\">\"" . $FileWav . "\""; 
+      Log3 $hash, 4, "Text2Speech:" .$cmd;
+      system($cmd);
+    
+    $cmd = "lame \"" . $FileWav . "\" \"" . $file . "\""; 
+      Log3 $hash, 4, "Text2Speech:" .$cmd;
+      system($cmd);
+    unlink $FileWav;
+  } elsif ($TTS_Ressource eq "SVOX-pico") {
+    my $FileWav = $file . ".wav";
+    
+    $cmd = "pico2wave --lang=" . $language{$TTS_Ressource}{$TTS_Language} . " --wave=\"" . $FileWav . "\" \"" . $text . "\""; 
+      Log3 $hash, 4, "Text2Speech:" .$cmd;
+      system($cmd);
+    
+    $cmd = "lame \"" . $FileWav . "\" \"" . $file . "\""; 
+      Log3 $hash, 4, "Text2Speech:" .$cmd;
+      system($cmd);
+    unlink $FileWav;
   }
-
-  $fh = new IO::File ">$file";
-  if(!defined($fh)) {
-    Log3 $hash->{NAME}, 2, "Text2Speech: mp3 Datei <$file> konnte nicht angelegt werden.";
-    return undef;
-  }
-
-  $fh->print($HttpResponse);
-  Log3 $hash->{NAME}, 4, "Text2Speech: Schreibe mp3 in die Datei $file mit ".length($HttpResponse)." Bytes";  
-  close($fh);
 }
 
 #####################################
@@ -736,135 +756,98 @@ sub Text2Speech_DoIt($) {
 
   Log3 $hash->{NAME}, 4, "Verwende TTS Spracheinstellung: ".$TTS_Language;
 
-  if($TTS_Ressource =~ m/(Google|VoiceRSS)/) {
+  my $filename;
+  my $file;
 
-    my $filename;
-    my $file;
+  unless(-e $TTS_CacheFileDir or mkdir $TTS_CacheFileDir) {
+    #Verzeichnis anlegen gescheitert
+    Log3 $hash->{NAME}, 2, "Text2Speech: Angegebenes Verzeichnis $TTS_CacheFileDir konnte erstmalig nicht angelegt werden.";
+    return undef;
+  }
 
-    unless(-e $TTS_CacheFileDir or mkdir $TTS_CacheFileDir) {
-      #Verzeichnis anlegen gescheitert
-      Log3 $hash->{NAME}, 2, "Text2Speech: Angegebenes Verzeichnis $TTS_CacheFileDir konnte erstmalig nicht angelegt werden.";
-      return undef;
+  if(AttrVal($hash->{NAME}, "TTS_UseMP3Wrap", 0)) {
+    # benutze das Tool MP3Wrap um bereits einzelne vorhandene Sprachdateien
+    # zusammenzuführen. Ziel: sauberer Sprachfluss
+    my @Mp3WrapFiles;
+    my @Mp3WrapText;
+    
+    $TTS_SentenceAppendix = $myFileTemplateDir ."/". $TTS_SentenceAppendix if($TTS_SentenceAppendix);
+    undef($TTS_SentenceAppendix) if($TTS_SentenceAppendix && (! -e $TTS_SentenceAppendix));
+
+    #Abspielliste erstellen
+    foreach my $t (@{$hash->{helper}{Text2Speech}}) {
+      if(-e $TTS_CacheFileDir."/".$t) { $filename = $t;} else {$filename = md5_hex($language{$TTS_Ressource}{$TTS_Language} ."|". $t) . ".mp3";} # falls eine bestimmte mp3-Datei gespielt werden soll
+      $file = $TTS_CacheFileDir."/".$filename;
+      if(-e $file) {
+        push(@Mp3WrapFiles, $file);
+        push(@Mp3WrapText, $t);
+        #Text2Speech_WriteStats($hash, 0, $file, $t);
+      } else {last;}
     }
 
-    
-    if(AttrVal($hash->{NAME}, "TTS_UseMP3Wrap", 0)) {
-      # benutze das Tool MP3Wrap um bereits einzelne vorhandene Sprachdateien
-      # zusammenzuführen. Ziel: sauberer Sprachfluss
-      my @Mp3WrapFiles;
-      my @Mp3WrapText;
+    push(@Mp3WrapFiles, $TTS_SentenceAppendix) if($TTS_SentenceAppendix);
+
+    if(scalar(@Mp3WrapFiles) >= 2) {
+      Log3 $hash->{NAME}, 4, "Text2Speech: Bearbeite per MP3Wrap jetzt den Text: ". join(" ", @Mp3WrapText);
+
+      my $Mp3WrapPrefix = md5_hex(join("|", @Mp3WrapFiles));
+      my $Mp3WrapFile = $TTS_CacheFileDir ."/". $Mp3WrapPrefix . "_MP3WRAP.mp3"; 
+
+      if(! -e $Mp3WrapFile) {
+        $cmd = "mp3wrap " .$TTS_CacheFileDir. "/" .$Mp3WrapPrefix. ".mp3 " .join(" ", @Mp3WrapFiles);
+        $cmd .= " >/dev/null" if($verbose < 5);;
+
+        Log3 $hash->{NAME}, 4, "Text2Speech: " .$cmd;
+        system($cmd);
+      }
+      if(-e $Mp3WrapFile) {
+        $cmd = Text2Speech_BuildMplayerCmdString($hash, $Mp3WrapFile);
+        Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
+        system($cmd);
+        #Text2Speech_WriteStats($hash, 1, $Mp3WrapFile, join(" ", @Mp3WrapText));
+      } else {
+        Log3 $hash->{NAME}, 2, "Text2Speech: Mp3Wrap Datei konnte nicht angelegt werden.";
+      }
       
-      $TTS_SentenceAppendix = $myFileTemplateDir ."/". $TTS_SentenceAppendix if($TTS_SentenceAppendix);
-      undef($TTS_SentenceAppendix) if($TTS_SentenceAppendix && (! -e $TTS_SentenceAppendix));
-
-      #Abspielliste erstellen
-      foreach my $t (@{$hash->{helper}{Text2Speech}}) {
-        if(-e $TTS_CacheFileDir."/".$t) { $filename = $t;} else {$filename = md5_hex($language{$TTS_Ressource}{$TTS_Language} ."|". $t) . ".mp3";} # falls eine bestimmte mp3-Datei gespielt werden soll
-        $file = $TTS_CacheFileDir."/".$filename;
-        if(-e $file) {
-          push(@Mp3WrapFiles, $file);
-          push(@Mp3WrapText, $t);
-          #Text2Speech_WriteStats($hash, 0, $file, $t);
-        } else {last;}
-      }
-
-      push(@Mp3WrapFiles, $TTS_SentenceAppendix) if($TTS_SentenceAppendix);
-
-      if(scalar(@Mp3WrapFiles) >= 2) {
-        Log3 $hash->{NAME}, 4, "Text2Speech: Bearbeite per MP3Wrap jetzt den Text: ". join(" ", @Mp3WrapText);
-
-        my $Mp3WrapPrefix = md5_hex(join("|", @Mp3WrapFiles));
-        my $Mp3WrapFile = $TTS_CacheFileDir ."/". $Mp3WrapPrefix . "_MP3WRAP.mp3"; 
-
-        if(! -e $Mp3WrapFile) {
-          $cmd = "mp3wrap " .$TTS_CacheFileDir. "/" .$Mp3WrapPrefix. ".mp3 " .join(" ", @Mp3WrapFiles);
-          $cmd .= " >/dev/null" if($verbose < 5);;
-
-          Log3 $hash->{NAME}, 4, "Text2Speech: " .$cmd;
-          system($cmd);
-        }
-        if(-e $Mp3WrapFile) {
-          $cmd = Text2Speech_BuildMplayerCmdString($hash, $Mp3WrapFile);
-          Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
-          system($cmd);
-          #Text2Speech_WriteStats($hash, 1, $Mp3WrapFile, join(" ", @Mp3WrapText));
-        } else {
-          Log3 $hash->{NAME}, 2, "Text2Speech: Mp3Wrap Datei konnte nicht angelegt werden.";
-        }
-        
-        return $hash->{NAME} ."|". 
-               ($TTS_SentenceAppendix ? scalar(@Mp3WrapFiles)-1: scalar(@Mp3WrapFiles)) ."|". 
-               $Mp3WrapFile;
-      }
+      return $hash->{NAME} ."|". 
+             ($TTS_SentenceAppendix ? scalar(@Mp3WrapFiles)-1: scalar(@Mp3WrapFiles)) ."|". 
+             $Mp3WrapFile;
     }
+  }
 
-    Log3 $hash->{NAME}, 4, "Text2Speech: Bearbeite jetzt den Text: ". $hash->{helper}{Text2Speech}[0];
+  Log3 $hash->{NAME}, 4, "Text2Speech: Bearbeite jetzt den Text: ". $hash->{helper}{Text2Speech}[0];
 
-    if(-e $hash->{helper}{Text2Speech}[0]) {
-      # falls eine bestimmte mp3-Datei mit absolutem Pfad gespielt werden soll
-      $filename = $hash->{helper}{Text2Speech}[0];
-      $file = $filename;
-      Log3 $hash->{NAME}, 4, "Text2Speech: $filename als direkte MP3 Datei erkannt!";
-    } elsif(-e $TTS_CacheFileDir."/".$hash->{helper}{Text2Speech}[0]) { 
-      # falls eine bestimmte mp3-Datei mit relativem Pfad gespielt werden soll
-      $filename = $hash->{helper}{Text2Speech}[0];
-      $file = $TTS_CacheFileDir."/".$filename;
-      Log3 $hash->{NAME}, 4, "Text2Speech: $filename als direkte MP3 Datei erkannt!";
-    } else {
-      $filename = md5_hex($language{$TTS_Ressource}{$TTS_Language} ."|". $hash->{helper}{Text2Speech}[0]) . ".mp3";
-      $file = $TTS_CacheFileDir."/".$filename;
-      Log3 $hash->{NAME}, 4, "Text2Speech: Textbaustein ist keine direkte MP3 Datei, ermittle MD5 CacheNamen: $filename";
-    } 
-    
-    if(! -e $file) { # Datei existiert noch nicht im Cache
-      Text2Speech_Download($hash, $file, $hash->{helper}{Text2Speech}[0]);
-    } else {
-      Log3 $hash->{NAME}, 4, "Text2Speech: $file gefunden, kein Download";
-    }
+  if(-e $hash->{helper}{Text2Speech}[0]) {
+    # falls eine bestimmte mp3-Datei mit absolutem Pfad gespielt werden soll
+    $filename = $hash->{helper}{Text2Speech}[0];
+    $file = $filename;
+    Log3 $hash->{NAME}, 4, "Text2Speech: $filename als direkte MP3 Datei erkannt!";
+  } elsif(-e $TTS_CacheFileDir."/".$hash->{helper}{Text2Speech}[0]) { 
+    # falls eine bestimmte mp3-Datei mit relativem Pfad gespielt werden soll
+    $filename = $hash->{helper}{Text2Speech}[0];
+    $file = $TTS_CacheFileDir."/".$filename;
+    Log3 $hash->{NAME}, 4, "Text2Speech: $filename als direkte MP3 Datei erkannt!";
+  } else {
+    $filename = md5_hex($language{$TTS_Ressource}{$TTS_Language} ."|". $hash->{helper}{Text2Speech}[0]) . ".mp3";
+    $file = $TTS_CacheFileDir."/".$filename;
+    Log3 $hash->{NAME}, 4, "Text2Speech: Textbaustein ist keine direkte MP3 Datei, ermittle MD5 CacheNamen: $filename";
+  } 
+  
+  if(! -e $file) { # Datei existiert noch nicht im Cache
+    Text2Speech_Download($hash, $file, $hash->{helper}{Text2Speech}[0]);
+  } else {
+    Log3 $hash->{NAME}, 4, "Text2Speech: $file gefunden, kein Download";
+  }
 
-    if(-e $file) { # Datei existiert jetzt
-      $cmd = Text2Speech_BuildMplayerCmdString($hash, $file);
-      Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
-      system($cmd);
-    }
-
-    return $hash->{NAME}. "|". 
-           "1" ."|".
-           $file;
-
-  } elsif ($TTS_Ressource eq "ESpeak") {
-    $cmd = "sudo espeak -vde+f3 -k5 -s150 \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
-    Log3 $hash, 4, "Text2Speech:" .$cmd;
+  if(-e $file) { # Datei existiert jetzt
+    $cmd = Text2Speech_BuildMplayerCmdString($hash, $file);
+    Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
     system($cmd);
-  } elsif ($TTS_Ressource eq "SVOX-pico") {
-  	my $Mp3FilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".mp3";
-  	if(! -e $Mp3FilePath) {
-  	  #Generate .wav file and convert to .mp3
-  	  my $WavFilePath = $TTS_CacheFileDir . "/" . md5_hex($hash->{helper}{Text2Speech}[0]) . ".wav";
-  	  my $TTS_Language = AttrVal($hash->{NAME}, "TTS_Language", "de-DE");
-  	  
-  	  $cmd = "pico2wave --lang=" . $language{$TTS_Ressource}{$TTS_Language} . " --wave=\"" . $WavFilePath . "\" \"" . $hash->{helper}{Text2Speech}[0] . "\""; 
-        Log3 $hash, 4, "Text2Speech:" .$cmd;
-        system($cmd);
-  	  
-  	  $cmd = "lame \"" . $WavFilePath . "\" \"" . $Mp3FilePath . "\""; 
-        Log3 $hash, 4, "Text2Speech:" .$cmd;
-        system($cmd);
-  	  
-  	  unlink $WavFilePath;
-  	}
-  	
-  	#Play .mp3 file
-  	if(-e $Mp3FilePath) {
-  	  $cmd = Text2Speech_BuildMplayerCmdString($hash, $Mp3FilePath);
-  	  Log3 $hash->{NAME}, 4, "Text2Speech:" .$cmd;
-  	  system($cmd);
-  	}
   }
 
   return $hash->{NAME}. "|". 
          "1" ."|".
-         "";
+         $file;
 }
 
 ####################################################
