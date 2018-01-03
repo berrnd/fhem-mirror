@@ -1,4 +1,4 @@
-# $Id$
+# $Id: 49_IPCAM.pm 2626 2013-02-01 19:19:15Z mfr69bs $
 # vim: ts=2:et
 ################################################################
 #
@@ -37,6 +37,7 @@ my %gets = (
 
 my %sets = (
   "cmd"   => "",
+  "cmdPost"   => "",
   "pan"   => "left,right",
   "pos"   => "",
   "tilt"  => "up,down",
@@ -53,12 +54,14 @@ IPCAM_Initialize($$)
   $hash->{UndefFn}  = "IPCAM_Undef";
   $hash->{GetFn}    = "IPCAM_Get";
   $hash->{SetFn}    = "IPCAM_Set";
-  $hash->{AttrList} = "basicauth delay credentials path pathCmd pathPanTilt query snapshots storage timestamp:0,1 ".
+  $hash->{AttrList} = "basicauth delay credentials path pathCmd pathCmdPost pathPanTilt query snapshots storage timestamp:0,1 ".
                       "cmdPanLeft cmdPanRight cmdTiltUp cmdTiltDown cmdStep ".
                       "cmdPos01 cmdPos02 cmdPos03 cmdPos04 cmdPos05 cmdPos06 cmdPos07 cmdPos08 ".
                       "cmdPos09 cmdPos10 cmdPos11 cmdPos12 cmdPos13 cmdPos14 cmdPos15 cmdPosHome ".
                       "cmd01 cmd02 cmd03 cmd04 cmd05 cmd06 cmd07 cmd08 ".
                       "cmd09 cmd10 cmd11 cmd12 cmd13 cmd14 cmd15 ".
+                      "cmdPost01 cmdPost02 cmdPost03 cmdPost04 cmdPost05 cmdPost06 cmdPost07 cmdPost08 ".
+                      "cmdPost09 cmdPost10 cmdPost11 cmdPost12 cmdPost13 cmdPost14 cmdPost15 cmdPostReferer ".
                       "do_not_notify:1,0 showtime:1,0 ".
                       "loglevel:0,1,2,3,4,5,6 disable:0,1 ".
                       $readingFnAttributes;
@@ -154,7 +157,7 @@ IPCAM_Set($@) {
 
     push(@camCmd,$attr{$name}{$arg});
 
-  } elsif($cmd eq "cmd") {
+  } elsif($cmd eq "cmd" || $cmd eq "cmdPost") {
 
     # check syntax
     return "argument is missing for $cmd"
@@ -164,6 +167,9 @@ IPCAM_Set($@) {
       if(defined($args[0]) && $args[0] !~ /^([1-9]|1[0-5])$/);
     
     my $arg = sprintf("cmd%02d",$args[0]);
+    if ($cmd eq "cmdPost") {
+      $arg = sprintf("cmdPost%02d",$args[0])
+    }
     return "Command for '$cmd $args[0]' is not defined. Please add this attribute first: " .
            "'attr $name $arg <your_camera_command>'"
       if(!defined($attr{$name}{$arg}));
@@ -193,13 +199,15 @@ IPCAM_Set($@) {
         $camPath = $attr{$name}{pathPanTilt};
     } elsif($cmd eq "cmd" && defined($attr{$name}{pathCmd})) {
         $camPath = $attr{$name}{pathCmd};
+    } elsif($cmd eq "cmdPost" && defined($attr{$name}{pathCmdPost})) {
+        $camPath = $attr{$name}{pathCmdPost};
     } elsif($cmd eq "raw") {
        $camPath = $camQuery;
     } else {
       $camPath = $attr{$name}{path};
     }
 
-    return "Missing a path value for camURI. Please set attribute 'path', 'pathCmd' and/or 'pathPanTilt' first."
+    return "Missing a path value for camURI. Please set attribute 'path', 'pathCmd', 'pathCmdPost' and/or 'pathPanTilt' first."
       if(!$camPath && $cmd ne "raw");
 
     if($basicauth) {
@@ -210,7 +218,7 @@ IPCAM_Set($@) {
 
     if($cmd eq "cmd" && defined($attr{$name}{pathCmd})) {
       $camURI .= "?$camQuery";
-    } elsif($cmd ne "raw") {
+    } elsif($cmd ne "raw" && $cmd ne "cmdPost") {
       $camURI .= "&$camQuery";
     }
 
@@ -230,7 +238,18 @@ IPCAM_Set($@) {
       }
     }
       
-    my $camret = GetFileFromURLQuiet($camURI);
+    my $camret;
+	if ($cmd eq "cmdPost") {
+	  $camret = HttpUtils_BlockingGet({
+        url => $camURI,
+        method => "POST",
+        header => "Referer: " . $attr{$name}{cmdPostReferer},
+        data => $camQuery,
+      });
+	} else {
+      $camret = GetFileFromURLQuiet($camURI);
+    }
+    
     Log 5, "ipcam return:$camret";
 
   }
