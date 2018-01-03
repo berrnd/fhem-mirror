@@ -243,7 +243,7 @@ IPCAM_Set($@) {
 	  $camret = HttpUtils_BlockingGet({
         url => $camURI,
         method => "POST",
-        header => "Referer: " . $attr{$name}{cmdPostReferer},
+        header => (defined($attr{$name}{cmdPostReferer}) ? "Referer: " . $attr{$name}{cmdPostReferer} : undef),
         data => $camQuery,
       });
 	} else {
