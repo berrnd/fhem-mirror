@@ -57,8 +57,12 @@ IPCAM_Initialize($$)
                       "cmdPanLeft cmdPanRight cmdTiltUp cmdTiltDown cmdStep ".
                       "cmdPos01 cmdPos02 cmdPos03 cmdPos04 cmdPos05 cmdPos06 cmdPos07 cmdPos08 ".
                       "cmdPos09 cmdPos10 cmdPos11 cmdPos12 cmdPos13 cmdPos14 cmdPos15 cmdPosHome ".
+                      "cmdPos01Alias cmdPos02Alias cmdPos03Alias cmdPos04Alias cmdPos05Alias cmdPos06Alias cmdPos07Alias cmdPos08Alias ".
+                      "cmdPos09Alias cmdPos10Alias cmdPos11Alias cmdPos12Alias cmdPos13Alias cmdPos14Alias cmdPos15Alias ".
                       "cmd01 cmd02 cmd03 cmd04 cmd05 cmd06 cmd07 cmd08 ".
                       "cmd09 cmd10 cmd11 cmd12 cmd13 cmd14 cmd15 ".
+                      "cmd01Alias cmd02Alias cmd03Alias cmd04Alias cmd05Alias cmd06Alias cmd07Alias cmd08Alias ".
+                      "cmd09Alias cmd10Alias cmd11Alias cmd12Alias cmd13Alias cmd14Alias cmd15Alias ".
                       "do_not_notify:1,0 showtime:1,0 ".
                       "loglevel:0,1,2,3,4,5,6 disable:0,1 ".
                       $readingFnAttributes;
@@ -144,7 +148,15 @@ IPCAM_Set($@) {
     return "argument is missing for $cmd"
       if(int(@args) < 1);
 
-    return "Wrong argument $args[0], only digits from 1 to 15 or home are allowed"
+    # Handle aliases, manipulate $args[0] that it contains the command number afterwards
+    my $alias = IPCAM_getHashKeyByValue($attr{$name}, $args[0]);
+    if (defined($alias)) {
+      my $cmdNumber = substr $alias, length($cmd) + 3, 2;
+      $cmdNumber =~ s/^0+//;
+      $args[0] = $cmdNumber;
+    }
+
+    return "Wrong argument $args[0], only digits from 1 to 15, home or an defined alias are allowed"
       if(defined($args[0]) && $args[0] !~ /^([1-9]|1[0-5])$/ && $args[0] ne "home");
     
     my $arg = ($args[0] =~ /\d+/) ? sprintf("cmdPos%02d",$args[0]) : "cmdPosHome";
@@ -160,7 +172,15 @@ IPCAM_Set($@) {
     return "argument is missing for $cmd"
       if(int(@args) < 1);
 
-    return "Wrong argument $args[0], only digits from 1 to 15 are allowed"
+    # Handle aliases, manipulate $args[0] that it contains the command number afterwards
+    my $alias = IPCAM_getHashKeyByValue($attr{$name}, $args[0]);
+    if (defined($alias)) {
+      my $cmdNumber = substr $alias, length($cmd), 2;
+      $cmdNumber =~ s/^0+//;
+      $args[0] = $cmdNumber;
+    }
+
+    return "Wrong argument $args[0], only digits from 1 to 15 or an defined alias are allowed"
       if(defined($args[0]) && $args[0] !~ /^([1-9]|1[0-5])$/);
     
     my $arg = sprintf("cmd%02d",$args[0]);
@@ -465,6 +485,15 @@ IPCAM_guessFileFormat($) {
   return "XBM"  if /^(?:\/\*.*\*\/\n)?#define\s/;
   return "SVG"  if /^(<\?xml|[\012\015\t ]*<svg\b)/;
   return "unknown";
+}
+
+sub
+IPCAM_getHashKeyByValue {
+  my ($h, $value) = @_;
+  while (my ($k, $v) = each %$h) { 
+    return $k if $v eq $value;
+  }
+  return;
 }
 
 # vim: ts=2:et
